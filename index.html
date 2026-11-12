@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Newsvibe AI - গভীর বিশ্লেষণ ও অডিও সংবাদ</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #f8fafc;
+            font-family: 'Noto Serif Bengali', serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .chat-container {
+            width: 100%;
+            max-width: 600px;
+            height: 90vh;
+            background: #1e293b;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+        .chat-header {
+            background: #0284c7;
+            padding: 16px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 700;
+        }
+        .chat-messages {
+            flex: 1;
+            padding: 16px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            max-width: 85%;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        .user-msg {
+            background: #3b82f6;
+            color: white;
+            align-self: flex-end;
+        }
+        .ai-msg {
+            background: #334155;
+            color: #f1f5f9;
+            align-self: flex-start;
+            border-left: 4px solid #0284c7;
+        }
+        .chat-input-area {
+            display: flex;
+            padding: 12px;
+            background: #0f172a;
+            border-top: 1px solid #334155;
+        }
+        input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #475569;
+            background: #1e293b;
+            color: white;
+            border-radius: 6px;
+            outline: none;
+            font-size: 15px;
+        }
+        button {
+            background: #0284c7;
+            color: white;
+            border: none;
+            padding: 0 20px;
+            margin-left: 8px;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #0369a1;
+        }
+        audio {
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="chat-container">
+        <div class="chat-header">🎙️ Newsvibe AI - সংবাদ বিশ্লেষণ</div>
+        
+        <div class="chat-messages" id="chatMessages">
+            <div class="message ai-msg">নমস্কার! আপনি কোন বিষয়ের গভীর বিশ্লেষণ ও অডিও শুনতে চান? নিচে লিখে জানান (যেমন: <i>পশ্চিমবঙ্গের শিক্ষা ব্যবস্থা</i>)।</div>
+        </div>
+
+        <div class="chat-input-area">
+            <input type="text" id="queryInput" placeholder="এখানে আপনার বিষয় লিখুন..." onkeypress="checkEnter(event)">
+            <button onclick="sendQuery()">পাঠান</button>
+        </div>
+    </div>
+
+    <script>
+        // তোমার রেন্ডার লাইভ এপিআই এন্ডপয়েন্ট
+        const API_URL = "https://newsvibe-ai.onrender.com/generate-news";
+
+        function checkEnter(e) {
+            if (e.key === 'Enter') sendQuery();
+        }
+
+        async function sendQuery() {
+            const inputField = document.getElementById('queryInput');
+            const query = inputField.value.trim();
+            if (!query) return;
+
+            const chatMessages = document.getElementById('chatMessages');
+
+            // ইউজারের মেসেজ স্ক্রিনে দেখানো
+            chatMessages.innerHTML += `<div class="message user-msg">${query}</div>`;
+            inputField.value = '';
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            // লোডিং মেসেজ
+            const loadingId = 'loading_' + Date.now();
+            chatMessages.innerHTML += `<div class="message ai-msg" id="${loadingId}">🔍 তথ্য সংগ্রহ ও গম্ভীর বিশ্লেষণ তৈরি হচ্ছে, একটু অপেক্ষা করুন...</div>`;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query, max_items: 5 })
+                });
+
+                if (!response.ok) throw new Error("সার্ভার থেকে ডেটা আনতে সমস্যা হয়েছে।");
+
+                const data = await response.json();
+                
+                // লোডিং মেসেজ ডিলিট করা
+                document.getElementById(loadingId).remove();
+
+                // এআই-এর বিশ্লেষণাত্মক উত্তর ও অডিও প্লেয়ার তৈরি
+                const headline = data.headline || "";
+                const summary = data.summary || "";
+                const audioBase64 = data.audio_base64 || "";
+
+                let aiResponseHTML = `<strong>📰 ${headline}</strong><br><br>${summary}`;
+
+                if (audioBase64) {
+                    aiResponseHTML += `<br><audio controls src="data:audio/mp3;base64,${audioBase64}"></audio>`;
+                }
+
+                chatMessages.innerHTML += `<div class="message ai-msg">${aiResponseHTML}</div>`;
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+
+            } catch (error) {
+                document.getElementById(loadingId).innerText = "❌ ত্রুটি ঘটেছে: " + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
